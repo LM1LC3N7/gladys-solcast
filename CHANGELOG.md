@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-16
+
 ### Added
 
 - Solcast home user (hobbyist) account: the API key of the Solcast toolkit,
@@ -36,4 +38,5 @@ the notes of the version's GitHub Release.
   buttons, both telling the calls left today.
 - Device and feature names in French or English.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-solcast/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-solcast/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-solcast/releases/tag/v0.1.1
