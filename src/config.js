@@ -1,45 +1,45 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
-//
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// The configuration of the manifest `config_schema`, normalized.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
-export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+import { createHash } from 'node:crypto';
+import { DAILY_LIMIT } from './constants.js';
+
+/** Defaults, mirrored by the manifest (checked by test/manifest.test.js). */
+export const DEFAULTS = {
+  daily_limit: DAILY_LIMIT.default,
+  language: 'fr',
 };
 
-/**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
- */
+export const LANGUAGES = ['fr', 'en'];
+
+/** The account the stored data belongs to, without keeping the key itself. */
+export const accountKey = (apiKey) =>
+  createHash('sha256').update(apiKey.trim()).digest('hex').slice(0, 16);
+
+/** "id-1, id-2" or one per line -> the resource ids, in order, without duplicates. */
+export function parseSiteIds(value) {
+  const ids = String(value ?? '')
+    .split(/[\s,;]+/)
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return [...new Set(ids)];
+}
+
 export function normalizeConfig(raw = {}) {
+  const apiKey = String(raw?.api_key ?? '').trim();
+  const given = raw?.daily_limit;
+  const limit = given === undefined || given === null || given === '' ? NaN : Number(given);
+  const language = String(raw?.language ?? DEFAULTS.language)
+    .trim()
+    .toLowerCase();
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    apiKey,
+    account: apiKey === '' ? '' : accountKey(apiKey),
+    siteIds: parseSiteIds(raw?.sites),
+    dailyLimit: Number.isFinite(limit)
+      ? Math.round(Math.max(DAILY_LIMIT.min, Math.min(DAILY_LIMIT.max, limit)))
+      : DEFAULTS.daily_limit,
+    language: LANGUAGES.includes(language) ? language : DEFAULTS.language,
   };
 }

@@ -1,177 +1,772 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Solcast",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Solcast rooftop PV forecasts: power now, energy today and tomorrow, with the P10/P90 range.",
+    "fr": "Prévisions solaires Solcast : puissance, énergie du jour et du lendemain, fourchette P10/P90."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-solcast:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-solcast/main/cover.png",
+  "categories": ["energy"],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Solcast account",
+        "fr": "Votre compte Solcast"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Brings the forecasts of a free Solcast home user (hobbyist) account into Gladys, next to Forecast.Solar: satellite-based forecasts for up to 2 rooftop sites (two roof planes) with their P10-P90 range, as estimated power now and energy today, remaining today and tomorrow. Create the account and its rooftop sites at toolkit.solcast.com.au, paste the API key of the account menu below, then add the sites from the Discovery tab: only the added sites are downloaded. A free account has 10 forecast calls per UTC day for all its sites: the integration spreads them over the daylight hours (5 a day with 2 sites), counts them across restarts and follows the last forecast in between. Forecasts are not counted in the energy monitoring. Unofficial, not affiliated with Solcast.",
+        "fr": "Amène dans Gladys les prévisions d'un compte Solcast gratuit « Home User » (hobbyist), en complément de Forecast.Solar : des prévisions satellitaires pour 2 sites au plus (deux pans de toit) avec leur fourchette P10-P90, en puissance estimée actuelle et énergie du jour, restante et du lendemain. Créez le compte et ses sites sur toolkit.solcast.com.au, collez ci-dessous la clé d'API du menu du compte, puis ajoutez les sites depuis l'onglet Découverte : seuls les sites ajoutés sont téléchargés. Un compte gratuit a 10 appels de prévision par jour UTC pour tous ses sites : l'intégration les répartit sur les heures de jour (5 par jour avec 2 sites), les compte d'un redémarrage à l'autre et suit la dernière prévision entre deux. Les prévisions ne comptent pas dans le suivi de l'énergie. Non officiel, sans lien avec Solcast."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://toolkit.solcast.com.au/register",
+          "label": {
+            "en": "Solcast account (Home User)",
+            "fr": "Compte Solcast (Home User)"
+          }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-solcast/blob/main/docs/fr.md",
+          "label": {
+            "en": "Guide (French)",
+            "fr": "Guide (français)"
+          }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-solcast/blob/main/docs/en.md",
+          "label": {
+            "en": "Guide (English)",
+            "fr": "Guide (anglais)"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "api_key",
+      "type": "secret",
+      "label": {
+        "en": "Solcast API key",
+        "fr": "Clé d'API Solcast"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "In the Solcast toolkit: the account menu (your user name), then API Key.",
+        "fr": "Dans le toolkit Solcast : le menu du compte (votre nom d'utilisateur), puis API Key."
+      },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "sites",
+      "type": "string",
+      "label": {
+        "en": "Rooftop sites (optional)",
+        "fr": "Sites (facultatif)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "Leave empty to use every rooftop site of the key (2 at most on a free account). Otherwise the resource ids to use, separated by commas (site detail page of the toolkit).",
+        "fr": "Laissez vide pour utiliser tous les sites de la clé (2 au plus sur un compte gratuit). Sinon les identifiants (resource id) à utiliser, séparés par des virgules (page de détail du site dans le toolkit)."
+      },
+      "placeholder": {
+        "en": "ab12-cd34-ef56-7890",
+        "fr": "ab12-cd34-ef56-7890"
+      },
+      "required": false
     },
     {
-      "key": "unit",
+      "key": "daily_limit",
+      "type": "number",
+      "label": {
+        "en": "Forecast calls per day",
+        "fr": "Appels de prévision par jour"
+      },
+      "description": {
+        "en": "The daily limit of the Solcast account, reset at midnight UTC: 10 for the accounts made today, 50 for some older ones. Lower it if another tool uses the same key.",
+        "fr": "La limite quotidienne du compte Solcast, remise à zéro à minuit UTC : 10 pour les comptes créés aujourd'hui, 50 pour certains comptes anciens. Baissez-la si un autre outil utilise la même clé."
+      },
+      "required": false,
+      "default": 10,
+      "min": 1,
+      "max": 50
+    },
+    {
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms des fonctionnalités"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Used for the names of the devices and features added from now on.",
+        "fr": "Sert aux noms des appareils et des fonctionnalités ajoutés désormais."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français"
+          }
+        },
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection (no call used)",
+        "fr": "Tester la connexion (aucun appel consommé)"
+      },
       "timeout_seconds": 30
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "refresh_forecast",
+      "label": {
+        "en": "Refresh the forecast now (uses calls)",
+        "fr": "Mettre à jour la prévision maintenant (consomme des appels)"
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "forecast_updated",
+      "label": {
+        "en": "Solar forecast updated (Solcast)",
+        "fr": "Prévision solaire mise à jour (Solcast)"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A new Solcast forecast was downloaded (5 to 10 times a day).",
+        "fr": "Une nouvelle prévision Solcast a été téléchargée (5 à 10 fois par jour)."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "label": {
+            "en": "Solcast forecast",
+            "fr": "Prévision Solcast"
+          },
+          "description": {
+            "en": "Leave empty for any site.",
+            "fr": "Laissez vide pour tous les sites."
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "site",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Rooftop site",
+            "fr": "Site"
+          }
+        },
+        {
+          "key": "power_now",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now (W)",
+            "fr": "Puissance estimée actuelle (W)"
+          }
+        },
+        {
+          "key": "power_now_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P10 (W)",
+            "fr": "Puissance estimée actuelle, P10 (W)"
+          }
+        },
+        {
+          "key": "power_now_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P90 (W)",
+            "fr": "Puissance estimée actuelle, P90 (W)"
+          }
+        },
+        {
+          "key": "energy_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today (kWh)",
+            "fr": "Énergie estimée aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P10 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P90 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P10 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P90 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow (kWh)",
+            "fr": "Énergie estimée demain (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P10 (kWh)",
+            "fr": "Énergie estimée demain, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P90 (kWh)",
+            "fr": "Énergie estimée demain, P90 (kWh)"
+          }
+        },
+        {
+          "key": "peak_power",
+          "type": "number",
+          "label": {
+            "en": "Peak power of the day (W)",
+            "fr": "Puissance du pic de la journée (W)"
+          }
+        },
+        {
+          "key": "peak_time",
+          "type": "string",
+          "label": {
+            "en": "Time of the peak (HH:MM)",
+            "fr": "Heure du pic (HH:MM)"
+          }
+        },
+        {
+          "key": "calls_left",
+          "type": "number",
+          "label": {
+            "en": "Solcast calls left today",
+            "fr": "Appels Solcast restants aujourd'hui"
+          }
         }
       ]
-    }
-  ],
-  "scene_actions": [
+    },
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "production_started",
+      "label": {
+        "en": "Solar production starts (Solcast)",
+        "fr": "Début de la production solaire (Solcast)"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "The estimated solar production starts (around sunrise).",
+        "fr": "La production solaire estimée commence (vers le lever du soleil)."
+      },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Solcast forecast",
+            "fr": "Prévision Solcast"
+          },
+          "description": {
+            "en": "Leave empty for any site.",
+            "fr": "Laissez vide pour tous les sites."
+          }
         }
       ],
-      "outputs": [
+      "variables": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "site",
+          "type": "string",
+          "label": {
+            "en": "Rooftop site",
+            "fr": "Site"
+          }
+        },
+        {
+          "key": "power_now",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now (W)",
+            "fr": "Puissance estimée actuelle (W)"
+          }
+        },
+        {
+          "key": "power_now_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P10 (W)",
+            "fr": "Puissance estimée actuelle, P10 (W)"
+          }
+        },
+        {
+          "key": "power_now_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P90 (W)",
+            "fr": "Puissance estimée actuelle, P90 (W)"
+          }
+        },
+        {
+          "key": "energy_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today (kWh)",
+            "fr": "Énergie estimée aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P10 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P90 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P10 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P90 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow (kWh)",
+            "fr": "Énergie estimée demain (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P10 (kWh)",
+            "fr": "Énergie estimée demain, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P90 (kWh)",
+            "fr": "Énergie estimée demain, P90 (kWh)"
+          }
+        },
+        {
+          "key": "peak_power",
+          "type": "number",
+          "label": {
+            "en": "Peak power of the day (W)",
+            "fr": "Puissance du pic de la journée (W)"
+          }
+        },
+        {
+          "key": "peak_time",
+          "type": "string",
+          "label": {
+            "en": "Time of the peak (HH:MM)",
+            "fr": "Heure du pic (HH:MM)"
+          }
+        },
+        {
+          "key": "calls_left",
+          "type": "number",
+          "label": {
+            "en": "Solcast calls left today",
+            "fr": "Appels Solcast restants aujourd'hui"
+          }
         }
       ]
-    }
-  ],
-  "widgets": [
+    },
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "production_peak",
+      "label": {
+        "en": "Solar production peak (Solcast)",
+        "fr": "Pic de production solaire (Solcast)"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "The estimated solar production reaches its peak of the day.",
+        "fr": "La production solaire estimée atteint son pic de la journée."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Solcast forecast",
+            "fr": "Prévision Solcast"
+          },
+          "description": {
+            "en": "Leave empty for any site.",
+            "fr": "Laissez vide pour tous les sites."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "site",
+          "type": "string",
+          "label": {
+            "en": "Rooftop site",
+            "fr": "Site"
+          }
+        },
+        {
+          "key": "power_now",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now (W)",
+            "fr": "Puissance estimée actuelle (W)"
+          }
+        },
+        {
+          "key": "power_now_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P10 (W)",
+            "fr": "Puissance estimée actuelle, P10 (W)"
+          }
+        },
+        {
+          "key": "power_now_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P90 (W)",
+            "fr": "Puissance estimée actuelle, P90 (W)"
+          }
+        },
+        {
+          "key": "energy_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today (kWh)",
+            "fr": "Énergie estimée aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P10 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P90 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P10 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P90 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow (kWh)",
+            "fr": "Énergie estimée demain (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P10 (kWh)",
+            "fr": "Énergie estimée demain, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P90 (kWh)",
+            "fr": "Énergie estimée demain, P90 (kWh)"
+          }
+        },
+        {
+          "key": "peak_power",
+          "type": "number",
+          "label": {
+            "en": "Peak power of the day (W)",
+            "fr": "Puissance du pic de la journée (W)"
+          }
+        },
+        {
+          "key": "peak_time",
+          "type": "string",
+          "label": {
+            "en": "Time of the peak (HH:MM)",
+            "fr": "Heure du pic (HH:MM)"
+          }
+        },
+        {
+          "key": "calls_left",
+          "type": "number",
+          "label": {
+            "en": "Solcast calls left today",
+            "fr": "Appels Solcast restants aujourd'hui"
+          }
+        }
+      ]
+    },
+    {
+      "key": "production_ended",
+      "label": {
+        "en": "Solar production ends (Solcast)",
+        "fr": "Fin de la production solaire (Solcast)"
+      },
+      "description": {
+        "en": "The estimated solar production ends (around sunset).",
+        "fr": "La production solaire estimée s'arrête (vers le coucher du soleil)."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Solcast forecast",
+            "fr": "Prévision Solcast"
+          },
+          "description": {
+            "en": "Leave empty for any site.",
+            "fr": "Laissez vide pour tous les sites."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "site",
+          "type": "string",
+          "label": {
+            "en": "Rooftop site",
+            "fr": "Site"
+          }
+        },
+        {
+          "key": "power_now",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now (W)",
+            "fr": "Puissance estimée actuelle (W)"
+          }
+        },
+        {
+          "key": "power_now_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P10 (W)",
+            "fr": "Puissance estimée actuelle, P10 (W)"
+          }
+        },
+        {
+          "key": "power_now_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated power now, P90 (W)",
+            "fr": "Puissance estimée actuelle, P90 (W)"
+          }
+        },
+        {
+          "key": "energy_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today (kWh)",
+            "fr": "Énergie estimée aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P10 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy today, P90 (kWh)",
+            "fr": "Énergie estimée aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P10 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_remaining_today_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy remaining today, P90 (kWh)",
+            "fr": "Énergie estimée restante aujourd'hui, P90 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow (kWh)",
+            "fr": "Énergie estimée demain (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p10",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P10 (kWh)",
+            "fr": "Énergie estimée demain, P10 (kWh)"
+          }
+        },
+        {
+          "key": "energy_tomorrow_p90",
+          "type": "number",
+          "label": {
+            "en": "Estimated energy tomorrow, P90 (kWh)",
+            "fr": "Énergie estimée demain, P90 (kWh)"
+          }
+        },
+        {
+          "key": "peak_power",
+          "type": "number",
+          "label": {
+            "en": "Peak power of the day (W)",
+            "fr": "Puissance du pic de la journée (W)"
+          }
+        },
+        {
+          "key": "peak_time",
+          "type": "string",
+          "label": {
+            "en": "Time of the peak (HH:MM)",
+            "fr": "Heure du pic (HH:MM)"
+          }
+        },
+        {
+          "key": "calls_left",
+          "type": "number",
+          "label": {
+            "en": "Solcast calls left today",
+            "fr": "Appels Solcast restants aujourd'hui"
+          }
+        }
+      ]
     }
   ]
 }

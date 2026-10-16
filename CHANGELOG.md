@@ -12,44 +12,28 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- Solcast home user (hobbyist) account: the API key of the Solcast toolkit,
+  and its rooftop sites read without using any call of the daily limit
+  (optionally restricted to some resource ids).
+- One device per rooftop site, and one for the total of two sites: estimated
+  power now, energy today, remaining today and tomorrow, each with its P10
+  and P90, with the names and units of the Forecast.Solar integration. They
+  are forecasts: the energy monitoring does not count them.
+- The 10 forecast calls per UTC day (configurable, 50 for some older
+  accounts) spread over the daylight hours: 5 downloads a day with two sites,
+  10 with one; only the added sites are downloaded; the calls are counted
+  across restarts.
+- The forecasts kept in `/data` (the morning of today included) and the
+  values recomputed every 5 minutes between two downloads, sent when they
+  change or every 30 minutes.
+- Pauses when Solcast is busy (no call used) and until midnight UTC when the
+  daily limit is reached; cloud badges marked degraded when the forecast is
+  more than 26 hours old.
+- Scene triggers "Solar forecast updated", "Solar production starts",
+  "Solar production peak" and "Solar production ends", with the values, the
+  peak and the calls left.
+- "Test the connection" (no call used) and "Refresh the forecast now"
+  buttons, both telling the calls left today.
+- Device and feature names in French or English.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-solcast/commits/main
